@@ -51,6 +51,13 @@ export default function App() {
       return;
     }
 
+    // 【追加】1文字だけの入力を弾く（2文字以上を必須にする）
+    // .length は文字の長さを表します
+    if (processedWord.length < 2) {
+      setError("単語は2文字以上で入力してください！");
+      return;
+    }
+
     // 【チェック①】過去に使用した単語の重複チェック
     if (history.includes(processedWord)) {
       setError(`「${processedWord}」はすでに使われています！`);
