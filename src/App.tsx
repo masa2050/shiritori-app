@@ -9,6 +9,26 @@ const convertToHiragana = (str: string): string => {
   });
 };
 
+// 【追加機能：辞書API】WikipediaのAPIを使って、単語が実在するかチェックする関数
+// ネット通信が発生するため、async（非同期）関数として定義します
+const checkWordExists = async (word: string): Promise<boolean> => {
+  try {
+    // origin=* をつけることで、Reactから直接叩いてもCORSエラーが起きないようになります
+    const url = `https://ja.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(word)}&limit=1&format=json&origin=*`;
+    
+    const response = await fetch(url);
+    if (!response.ok) return false;
+    
+    const data = await response.json();
+    // data[1] は検索にヒットした単語の配列。1件でもヒットすれば実在するとみなす
+    return data[1] && data[1].length > 0;
+  } catch (error) {
+    console.error("APIエラー:", error);
+    // 万が一APIサーバーが落ちていた場合は、ゲームが止まらないようにとりあえずtrue（実在する）にしておく優しい設計
+    return true; 
+  }
+};
+
 export default function App() {
   // --- 1. State（状態）の定義とTypeScriptの型定義 ---
   
@@ -27,18 +47,21 @@ export default function App() {
   // ゲームが終了したかどうかを判定するState
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
+  // 【UX向上】APIの通信中にボタンを連打させないためのState
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
 
   // --- 2. しりとりの判定ロジック（関数） ---
   
   // 送信ボタンが押されたときに実行される関数（React 19最新のSubmitEvent型）
-  const handleSubmit = (e: SubmitEvent) => {
+  const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault(); // ページが勝手にリロードされるのを防ぐ
 
     // 入力が空っぽの場合は何もしない
     if (!inputWord.trim()) return;
 
     // 既にゲームオーバーなら処理しない
-    if (isGameOver) return;
+    if (isGameOver || isLoading) return;
 
     // 【追加機能①】入力された文字（カタカナ）をひらがなに自動変換！
     // これ以降のチェックは、すべて元の inputWord ではなく processedWord を使います
@@ -64,14 +87,44 @@ export default function App() {
       setIsGameOver(true);
       return;
     }
-
+    
     // 【チェック②】しりとりが繋がっているかのチェック
-    const lastChar = currentWord.slice(-1);
+    let lastChar = currentWord.slice(-1);
+
+    // ルール1: もし末尾が「ー」なら、最後から2番目の文字を取る
+    if (lastChar === "ー") {
+      lastChar = currentWord.slice(-2, -1);
+    }
+
+    // ルール2: もしその文字が小さい文字なら、大きい文字に変換するマッピング
+    const smallToLarge: Record<string, string> = {
+      "ぁ": "あ", "ぃ": "い", "ぅ": "う", "ぇ": "え", "ぉ": "お",
+      "っ": "つ",
+      "ゃ": "や", "ゅ": "ゆ", "ょ": "よ",
+      "ゎ": "わ"
+    };
+
+    if (lastChar in smallToLarge) {
+      lastChar = smallToLarge[lastChar];
+    }
     const firstChar = processedWord.charAt(0);
 
     if (lastChar !== firstChar) {
       setError(`繋がりません！「${lastChar}」から始まる単語を入力してください。`);
       return;
+    }
+
+    setIsLoading(true);
+    setError("辞書で単語を確認中...");
+    
+    const exists = await checkWordExists(processedWord);
+    
+    setIsLoading(false); // 通信が終わったので解除
+    setError("");
+
+    if (!exists) {
+      setError(`「${processedWord}」は辞書にない、実在しない単語です！`);
+      return; // 履歴に追加せず、ここでストップ（やり直し可能）
     }
 
     // 【チェック③】末尾が「ん」で終わるかのチェック
