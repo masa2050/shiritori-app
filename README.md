@@ -1,32 +1,81 @@
-# React + TypeScript + Vite
+# しりとりバトル (Vite + React + Tailwind CSS)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+jig.jp 2026 サマーインターンシップ選考提出課題です。
+Wikipedia APIと連携したCPU対戦モードを搭載し、UI/UXとゲームバランスにこだわったモダンなしりとりアプリを実装しました。
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## デプロイ先URL
 
-## React Compiler
+Vercelにてデプロイを行っており、PC・スマートフォン双方で即座に動作確認が可能です。
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 動作確認URL: https://shiritori-app-eight.vercel.app/
 
-## Expanding the Oxlint configuration
+---
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## 実装機能の説明
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+本アプリは、提示された基本仕様（直前単語表示、入力判定、「ん」終了、重複チェック、リセット）をすべて網羅した上で、**追加機能として以下の4つの要素**をこだわり抜いて実装しています。
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### 1. 【追加機能①】難易度選択付きのインテリジェントCPU対戦
+
+ただ単語を自動で返すだけでなく、対戦ゲームとしての駆け引きを楽しめるよう、難易度（簡単・普通・難しい）に応じてCPUの挙動が変化するロジックを実装しました。
+
+- **簡単 (Easy)**:
+  しりとり初心者でも理不尽に負けないよう、2ターン目以降に「ん」で終わる実在単語を検索結果から引き当て、30%の確率でCPUが自爆（敗北）するようにゲームバランスを緩和しています。
+- **普通 (Normal)**:
+  10%の確率で「次の単語が思い浮かばない！」とCPUが降伏する、人間味ある不完全さを再現しました。
+- **難しい (Hard)**:
+  プレイヤーからの執拗な同じ文字ループ（ハメ手）に対し、返しにくい「り・る・れ・ぬ・む」で終わる単語を優先して返して徹底的なカウンターを仕掛けます。
+
+### 2. 【追加機能②】Wikipedia APIを活用した「実在単語判定」＆「CPU語彙力」
+
+実在する言葉でのみしりとりが成立するよう、入力された単語をWikipedia APIを用いてリアルタイム検証しています。
+
+- **スマートな難易度制御**:
+  複雑なコードでバグを誘発するのを避けるため、**「難易度に応じて、Wikipedia APIから取得する単語候補数を `10個 / 30個 / 100個` に可変させる」**というロジカルなアプローチでCPUの強さを調整しています。
+
+### 3. 【追加機能③】時間切れタイマー機能 (10秒カウントダウン)
+
+ゲームとしての緊張感を演出するため、プレイヤーのターンに10秒の制限時間を設けています。残り3秒以下になると表示が赤色に変色し、脈打つアニメーション（`animate-pulse`）で視覚的な焦りを演出するUXを施しています。
+
+### 4. 【追加機能④】連続入力・操作性を極めたUX (オートフォーカス)
+
+しりとり特有の「テンポよく言葉を打つ心地よさ」を損なわないよう、CPUのターン（ローディング）が終わった瞬間、`useRef` を用いて**自動的にテキスト入力欄へフォーカスが戻る**ように制御しています。マウス操作を挟むことなく、キーボードだけで連続してプレイ可能です。
+
+---
+
+## デザインのこだわり
+
+- **洗練されたカード型レイアウト**:
+  トレンドの淡いグレー（`bg-slate-50`）をベースに、うっすらと立体的なシャドウ（`shadow-xl`）を効かせた白カード内にすべてのUIを整理。
+- **直感的なフィードバック**:
+  選択中の難易度ボタンはブランドカラーでハイライトし、ホバー時・クリック時の滑らかなインタラクション（`transition-all`, `active:scale-95`）を設定しています。
+
+---
+
+## 技術スタック
+
+- **Vite / React (TypeScript)**
+- **Tailwind CSS** (CDNによる高速レンダリング化)
+- **Git / GitHub** (開発ブランチ `feature/*` を用いたマージ管理)
+
+---
+
+## 🤖 AIの活用方法について
+
+本アプリの開発において、AI（Gemini 2.5） を以下のように共同開発パートナーとして全面的に活用しました。
+
+- **ロジックの壁打ちと検証**:
+  「難易度『簡単』でCPUをたまに自爆させたい」「『難しい』で特定の語尾を優先して返させたい」というゲーム設計の相談を行い、条件分岐アルゴリズムの最適化に活用。
+- **UXのブラッシュアップ**:
+  ロード時間中の自動フォーカス（`useRef`）の実装方法や、Tailwind CSSを用いた「残り3秒でタイマーが脈打つ演出」などのアニメーション提案。
+- **環境構築におけるトラブルシューティング**:
+  Tailwind CSSの設定ファイルがビルド環境（Vite/Rolldown）のバグにより正常に解決できなかった際、CDNを用いた安全で確実な代替手法の選定と実装に活用しました。
+
+---
+
+## 🔗 参考にしたWebサイト
+
+- [React 公式ドキュメント (RefsによるDOMの操作)](https://ja.react.dev/learn/manipulating-the-dom-with-refs)
+- [Tailwind CSS 公式ドキュメント](https://tailwindcss.com/docs/installation/using-vite)
