@@ -1,0 +1,30 @@
+/* タイマー全体のデザイン */
+.timer-display {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    text-align: center;
+    color: #333;
+  }
+  
+  .timer-display span {
+    font-size: 1.8rem;
+    color: #007bff; /* 青色 */
+    transition: color 0.3s ease;
+  }
+  
+  /* 残り時間が少なくなったときの警告（赤色＋点滅） */
+  .timer-display.danger {
+    color: #dc3545;
+    animation: blink 1s infinite;
+  }
+  
+  .timer-display.danger span {
+    color: #dc3545;
+  }
+  
+  @keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
