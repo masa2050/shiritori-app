@@ -1,48 +1,40 @@
 import { useState, useEffect, useRef, type SubmitEvent } from "react";
-import { convertToHiragana, checkWordExists } from "./shiritoriUtils";
+// 1. インポートを完全に正しい小文字ファイル名に固定
+import { convertToHiragana, checkWordExists } from "./ShiritoriUtils.ts";
 import "./App.css";
 
 export default function App() {
   // --- 1. State（状態）の定義とTypeScriptの型定義 ---
 
-  // 直前の単語を保存するState（初期値は「しりとり」）
   const [currentWord, setCurrentWord] = useState<string>("しりとり");
-
-  // 入力フォームの文字をリアルタイムに保存するState
   const [inputWord, setInputWord] = useState<string>("");
-
-  // 過去に入力した単語を記録する配列 of State（重複チェックに連動）
   const [history, setHistory] = useState<string[]>(["しりとり"]);
-
-  // エラーメッセージを保存するState
   const [error, setError] = useState<string>("");
-
-  // ゲームが終了したかどうかを判定するState
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
-
-  // 【UX向上】APIの通信中にボタンを連打させないためのState
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // --- タイマー用のステートと参照 ---
   const [timeLeft, setTimeLeft] = useState<number>(10); // 初期値10秒
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 【新規追加】入力欄をプログラムから直接操作するための参照（フォーカス用）
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // 難易度を管理するState
+  const [difficulty, setDifficulty] = useState<"easy" | "normal" | "hard">("easy");
 
   // タイマーを開始・リセットする関数
   const resetTimer = () => {
-    // すでに動いているタイマーがあればクリアする
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
-    // 残り時間を10秒に戻す
     setTimeLeft(10);
 
-    // 1秒ごとにカウントダウンするタイマーを起動
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          // 0秒になったらタイマーを止めてゲームオーバーにする
           if (timerRef.current) clearInterval(timerRef.current);
-          handleTimeOut(); // タイムアウト時の処理
+          handleTimeOut();
           return 0;
         }
         return prev - 1;
@@ -50,81 +42,65 @@ export default function App() {
     }, 1000);
   };
 
-  // タイムアウト（時間切れ）時の処理
   const handleTimeOut = () => {
     setError("時間切れです！あなたの負けです。");
-    setIsGameOver(true); // 👈 これで10秒経ったら自動でゲームオーバー画面に切り替わります！
+    setIsGameOver(true);
   };
 
-  // ゲーム開始時や、単語が正しく送信されたタイミングでタイマーをリセットする
   useEffect(() => {
-    // ゲームオーバー状態の時はタイマーを起動しない
-    if (isGameOver) {
+    if (isGameOver || isLoading) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
 
     resetTimer();
-    // クリーンアップ処理（コンポーネントが消えるときにタイマーを止める）
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [history, isGameOver]); // 履歴が更新された時、またはゲームオーバーになった時に連動
+  }, [history, isGameOver, isLoading]);
+
+  // ロード中（相手のターン）が終わって入力欄が復活した瞬間に、自動でフォーカスを当てる
+  useEffect(() => {
+    if (!isLoading && !isGameOver) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading, isGameOver]);
 
   // --- 2. しりとりの判定ロジック（関数） ---
 
-  // 送信ボタンが押されたときに実行される関数（React 19最新のSubmitEvent型）
   const handleSubmit = async (e: SubmitEvent) => {
-    e.preventDefault(); // ページが勝手にリロードされるのを防ぐ
+    e.preventDefault();
 
-    // 入力が空っぽの場合は何もしない
     if (!inputWord.trim()) return;
-
-    // 既にゲームオーバーなら処理しない
     if (isGameOver || isLoading) return;
 
-    // 【追加機能①】入力された文字（カタカナ）をひらがなに自動変換！
     const processedWord = convertToHiragana(inputWord.trim());
 
-    // 【追加機能②】ひらがな以外の文字（漢字や英語）を弾く
     if (!/^[ぁ-んー]+$/.test(processedWord)) {
       setError("ひらがな、またはカタカナのみで入力してください！");
       return;
     }
 
-    // 【追加】1文字だけの入力を弾く（2文字以上を必須にする）
     if (processedWord.length < 2) {
       setError("単語は2文字以上で入力してください！");
       return;
     }
 
-    // 【チェック①】過去に使用した単語の重複チェック
     if (history.includes(processedWord)) {
       setError(`「${processedWord}」はすでに使われています！`);
       setIsGameOver(true);
       return;
     }
 
-    // 【チェック②】しりとりが繋がっているかのチェック
     let lastChar = currentWord.slice(-1);
 
-    // ルール1: もし末尾が「ー」なら、最後から2番目の文字を取る
     if (lastChar === "ー") {
       lastChar = currentWord.slice(-2, -1);
     }
 
-    // ルール2: もしその文字が小さい文字なら、大きい文字に変換するマッピング
     const smallToLarge: Record<string, string> = {
-      ぁ: "あ",
-      ぃ: "い",
-      ぅ: "う",
-      ぇ: "え",
-      ぉ: "お",
-      っ: "つ",
-      ゃ: "や",
-      ゅ: "ゆ",
-      ょ: "よ",
-      ゎ: "わ",
+      ぁ: "あ", ぃ: "い", ぅ: "う", ぇ: "え", ぉ: "お",
+      っ: "つ", ゃ: "や", ゅ: "ゆ", ょ: "よ", ゎ: "わ",
     };
 
     if (lastChar in smallToLarge) {
@@ -139,44 +115,138 @@ export default function App() {
       return;
     }
 
-    // ※ handleSubmitの中に重複して存在していた不要な handleReset は綺麗に削除しました
-
     setIsLoading(true);
     setError("辞書で単語を確認中...");
 
     const exists = await checkWordExists(processedWord);
 
-    setIsLoading(false); // 通信が終わったので解除
-    setError("");
-
     if (!exists) {
+      setIsLoading(false);
       setError(`「${processedWord}」は辞書にない、実在しない単語です！`);
-      return; // 履歴に追加せず、ここでストップ（やり直し可能）
-    }
-
-    // 【チェック③】末尾が「ん」で終わるかのチェック
-    if (processedWord.endsWith("ん")) {
-      setCurrentWord(processedWord); // 「ん」がついた単語を表示して終了
-      setError("「ん」がついたのでゲーム終了です！");
-      setIsGameOver(true);
       return;
     }
 
-    // --- すべてのチェックをクリアした場合（単語の更新） ---
-    setCurrentWord(processedWord); // 直前の単語を更新
-    setHistory([...history, processedWord]); // 履歴配列の末尾に新しい単語を追加
-    setInputWord(""); // 入力欄を空っぽにする
-    setError(""); // エラーを消す
+    setError("");
+
+    if (processedWord.endsWith("ん")) {
+      setCurrentWord(processedWord);
+      setError("「ん」がついたのでゲーム終了です！");
+      setIsGameOver(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // --- プレイヤーの単語更新 ---
+    const newHistory = [...history, processedWord];
+    setCurrentWord(processedWord);
+    setHistory(newHistory);
+    setInputWord("");
+
+    // --- 即レスCPUの思考ロジック ---
+    setIsLoading(true);
+
+    let nextStartChar = processedWord.slice(-1);
+    if (nextStartChar === "ー") {
+      nextStartChar = processedWord.slice(-2, -1);
+    }
+    if (nextStartChar in smallToLarge) {
+      nextStartChar = smallToLarge[nextStartChar];
+    }
+
+    try {
+      // インポートパスも小文字の「shiritoriUtils」に固定
+      const { fetchCpuWords } = await import("./ShiritoriUtils.ts");
+      const candidates = await fetchCpuWords(nextStartChar, difficulty);
+      
+      const processedCandidates = candidates
+        .map(word => convertToHiragana(word))
+        .filter(word => word.length >= 2);
+
+      const unusedCandidates = processedCandidates.filter(word => !newHistory.includes(word));
+
+      let cpuWord = "";
+
+      // 難易度チョイス
+      // 2. 難易度（difficulty）に応じた単語チョイス
+      if (difficulty === "easy") {
+        const currentTurn = newHistory.length;
+
+        // 【簡単モード】：2ターン目以降（履歴が3つ以上）、かつ30%の確率で「ん」で終わる単語を探して自爆する
+        if (currentTurn >= 3 && Math.random() < 0.30) {
+          // Wikipediaから取得した候補の中から、語尾が「ん」で終わるもの（実在する言葉）を探す
+          const selfDestructCandidate = unusedCandidates.find(w => w.endsWith("ん"));
+          if (selfDestructCandidate) {
+            cpuWord = selfDestructCandidate;
+          }
+        }
+
+        // 自爆しないターン、または「ん」終わりの候補が見つからなかった場合は普通の安全な言葉を選ぶ
+        if (!cpuWord && unusedCandidates.length > 0) {
+          const safeCandidates = unusedCandidates.filter(w => !w.endsWith("ん"));
+          if (safeCandidates.length > 0) {
+            cpuWord = safeCandidates[Math.floor(Math.random() * safeCandidates.length)];
+          }
+        }
+      }
+      else if (difficulty === "normal") {
+        if (Math.random() < 0.10) {
+          cpuWord = ""; 
+        } else {
+          const safeCandidates = unusedCandidates.filter(w => !w.endsWith("ん"));
+          if (safeCandidates.length > 0) {
+            cpuWord = safeCandidates[Math.floor(Math.random() * safeCandidates.length)];
+          }
+        }
+      } 
+      else if (difficulty === "hard") {
+        const safeCandidates = unusedCandidates.filter(w => !w.endsWith("ん"));
+        const annoyingCandidates = safeCandidates.filter(w => ["り", "る", "れ"].includes(w.slice(-1)));
+        
+        if (annoyingCandidates.length > 0) {
+          cpuWord = annoyingCandidates[Math.floor(Math.random() * annoyingCandidates.length)];
+        } else if (safeCandidates.length > 0) {
+          cpuWord = safeCandidates[Math.floor(Math.random() * safeCandidates.length)];
+        }
+      }
+
+      // CPUからの返答処理
+      if (cpuWord) {
+        setTimeout(() => {
+          setCurrentWord(cpuWord);
+          setHistory(prev => [...prev, cpuWord]);
+          setIsLoading(false); // ここで自動でインプット欄へフォーカスが当たります
+
+          if (cpuWord.endsWith("ん")) {
+            setError(`CPUは「${cpuWord}」と言って自爆しました！あなたの勝ちです！`);
+            setIsGameOver(true);
+          }
+        }, 1000);
+      } else {
+        setTimeout(() => {
+          setError("CPUは次の単語が思い浮かびませんでした！あなたの勝ちです！");
+          setIsGameOver(true);
+          setIsLoading(false);
+        }, 1000);
+      }
+    } catch (err) {
+      console.error(err);
+      setIsLoading(false);
+    }
   };
 
-  // --- 3. 最初からやり直すリセット機能 ---
+  // 最初からやり直すリセット機能
   const handleReset = () => {
     setCurrentWord("しりとり");
     setInputWord("");
     setHistory(["しりとり"]);
     setError("");
     setIsGameOver(false);
-    resetTimer(); // 👈 やり直した時に、タイマーも10秒から再スタートさせます！
+    setIsLoading(false);
+    resetTimer();
+    // リセットした瞬間にフォーカスを合わせる
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
   };
 
   // --- 4. 画面の見た目（JSX） ---
@@ -184,7 +254,56 @@ export default function App() {
     <div style={{ padding: "30px", maxWidth: "400px", margin: "0 auto" }}>
       <h1>しりとりアプリ</h1>
 
-      {/* 直前の単語の表示 */}
+      {!isGameOver && (
+        <div style={{ marginBottom: "20px", display: "flex", gap: "5px", justifyContent: "center" }}>
+          <button 
+            onClick={() => setDifficulty("easy")}
+            disabled={isLoading}
+            style={{ 
+              padding: "5px 10px", 
+              cursor: isLoading ? "not-allowed" : "pointer",
+              background: difficulty === "easy" ? "#10b981" : "#e5e7eb",
+              color: difficulty === "easy" ? "white" : "#374151",
+              border: "none",
+              borderRadius: "4px",
+              opacity: isLoading ? 0.6 : 1
+            }}
+          >
+            簡単
+          </button>
+          <button 
+            onClick={() => setDifficulty("normal")}
+            disabled={isLoading}
+            style={{ 
+              padding: "5px 10px", 
+              cursor: isLoading ? "not-allowed" : "pointer",
+              background: difficulty === "normal" ? "#3b82f6" : "#e5e7eb",
+              color: difficulty === "normal" ? "white" : "#374151",
+              border: "none",
+              borderRadius: "4px",
+              opacity: isLoading ? 0.6 : 1
+            }}
+          >
+            普通
+          </button>
+          <button 
+            onClick={() => setDifficulty("hard")}
+            disabled={isLoading}
+            style={{ 
+              padding: "5px 10px", 
+              cursor: isLoading ? "not-allowed" : "pointer",
+              background: difficulty === "hard" ? "#ef4444" : "#e5e7eb",
+              color: difficulty === "hard" ? "white" : "#374151",
+              border: "none",
+              borderRadius: "4px",
+              opacity: isLoading ? 0.6 : 1
+            }}
+          >
+            難しい
+          </button>
+        </div>
+      )}
+
       <div
         style={{
           background: "#f0f0f0",
@@ -197,15 +316,12 @@ export default function App() {
         <h2 style={{ margin: "5px 0 0 0", color: "#333" }}>{currentWord}</h2>
       </div>
 
-      {/* エラーメッセージの表示（エラーがある時だけ赤い文字で出す） */}
       {error && <p style={{ color: "red", fontWeight: "bold" }}>{error}</p>}
 
-      {/* タイマー表示エリア */}
       <div className={`timer-display ${timeLeft <= 3 ? "danger" : ""}`}>
         残り時間: <span>{timeLeft}</span> 秒
       </div>
 
-      {/* ゲーム進行中か、ゲームオーバーかで画面を切り替える（条件分岐） */}
       {isGameOver ? (
         <div
           style={{
@@ -224,25 +340,26 @@ export default function App() {
           </button>
         </div>
       ) : (
-        /* 任意の単語を入力できるフォーム */
         <form onSubmit={handleSubmit} style={{ display: "flex", gap: "10px" }}>
           <input
+            ref={inputRef} // 👈 inputRefを紐付けることで、自動フォーカスが機能します
             type="text"
             value={inputWord}
             onChange={(e) => setInputWord(e.target.value)}
-            placeholder="次の単語を入力"
+            disabled={isLoading}
+            placeholder={isLoading ? "相手が考えています..." : "次の単語を入力"}
             style={{ padding: "10px", flex: 1 }}
           />
           <button
             type="submit"
-            style={{ padding: "10px 20px", cursor: "pointer" }}
+            disabled={isLoading}
+            style={{ padding: "10px 20px", cursor: isLoading ? "not-allowed" : "pointer" }}
           >
-            送信
+            {isLoading ? "確認中" : "送信"}
           </button>
         </form>
       )}
 
-      {/* ゲーム中いつでもリセットできるボタン */}
       {!isGameOver && (
         <button
           onClick={handleReset}
