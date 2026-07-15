@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef, type SubmitEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 // 1. インポートを完全に正しい小文字ファイル名に固定
 import { convertToHiragana, checkWordExists } from "./ShiritoriUtils.ts";
-import "./App.css";
 
 export default function App() {
   // --- 1. State（状態）の定義とTypeScriptの型定義 ---
@@ -68,7 +67,7 @@ export default function App() {
 
   // --- 2. しりとりの判定ロジック（関数） ---
 
-  const handleSubmit = async (e: SubmitEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!inputWord.trim()) return;
@@ -249,131 +248,142 @@ export default function App() {
     }, 50);
   };
 
-  // --- 4. 画面の見た目（JSX） ---
+  // --- 4. 画面の見た目（JSX + Tailwind CSS） ---
   return (
-    <div style={{ padding: "30px", maxWidth: "400px", margin: "0 auto" }}>
-      <h1>しりとりアプリ</h1>
-
-      {!isGameOver && (
-        <div style={{ marginBottom: "20px", display: "flex", gap: "5px", justifyContent: "center" }}>
-          <button 
-            onClick={() => setDifficulty("easy")}
-            disabled={isLoading}
-            style={{ 
-              padding: "5px 10px", 
-              cursor: isLoading ? "not-allowed" : "pointer",
-              background: difficulty === "easy" ? "#10b981" : "#e5e7eb",
-              color: difficulty === "easy" ? "white" : "#374151",
-              border: "none",
-              borderRadius: "4px",
-              opacity: isLoading ? 0.6 : 1
-            }}
-          >
-            簡単
-          </button>
-          <button 
-            onClick={() => setDifficulty("normal")}
-            disabled={isLoading}
-            style={{ 
-              padding: "5px 10px", 
-              cursor: isLoading ? "not-allowed" : "pointer",
-              background: difficulty === "normal" ? "#3b82f6" : "#e5e7eb",
-              color: difficulty === "normal" ? "white" : "#374151",
-              border: "none",
-              borderRadius: "4px",
-              opacity: isLoading ? 0.6 : 1
-            }}
-          >
-            普通
-          </button>
-          <button 
-            onClick={() => setDifficulty("hard")}
-            disabled={isLoading}
-            style={{ 
-              padding: "5px 10px", 
-              cursor: isLoading ? "not-allowed" : "pointer",
-              background: difficulty === "hard" ? "#ef4444" : "#e5e7eb",
-              color: difficulty === "hard" ? "white" : "#374151",
-              border: "none",
-              borderRadius: "4px",
-              opacity: isLoading ? 0.6 : 1
-            }}
-          >
-            難しい
-          </button>
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 antialiased">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8 space-y-6">
+        
+        {/* タイトル */}
+        <div className="text-center">
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">
+            しりとりバトル
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">Wikipedia API搭載 CPU対戦モード</p>
         </div>
-      )}
 
-      <div
-        style={{
-          background: "#f0f0f0",
-          padding: "15px",
-          borderRadius: "8px",
-          marginBottom: "20px",
-        }}
-      >
-        <p style={{ margin: 0, color: "#666" }}>直前の単語</p>
-        <h2 style={{ margin: "5px 0 0 0", color: "#333" }}>{currentWord}</h2>
-      </div>
+        {/* 難易度選択 */}
+        {!isGameOver && (
+          <div className="bg-slate-100 p-1 rounded-xl flex gap-1">
+            <button
+              onClick={() => setDifficulty("easy")}
+              disabled={isLoading}
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
+                difficulty === "easy"
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-200"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              簡単
+            </button>
+            <button
+              onClick={() => setDifficulty("normal")}
+              disabled={isLoading}
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
+                difficulty === "normal"
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-200"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              普通
+            </button>
+            <button
+              onClick={() => setDifficulty("hard")}
+              disabled={isLoading}
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
+                difficulty === "hard"
+                  ? "bg-rose-500 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-200"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              難しい
+            </button>
+          </div>
+        )}
 
-      {error && <p style={{ color: "red", fontWeight: "bold" }}>{error}</p>}
-
-      <div className={`timer-display ${timeLeft <= 3 ? "danger" : ""}`}>
-        残り時間: <span>{timeLeft}</span> 秒
-      </div>
-
-      {isGameOver ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "20px",
-            background: "#fee2e2",
-            borderRadius: "8px",
-          }}
-        >
-          <h3 style={{ color: "#991b1b", margin: "0 0 10px 0" }}>GAME OVER</h3>
-          <button
-            onClick={handleReset}
-            style={{ padding: "10px 20px", cursor: "pointer" }}
-          >
-            最初からやり直す
-          </button>
+        {/* 直前の単語表示エリア */}
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200/60 rounded-xl p-5 text-center relative overflow-hidden shadow-inner">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">直前の単語</p>
+          <h2 className="text-4xl font-black text-slate-800 mt-2 tracking-wide font-mono">
+            {currentWord}
+          </h2>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} style={{ display: "flex", gap: "10px" }}>
-          <input
-            ref={inputRef} // 👈 inputRefを紐付けることで、自動フォーカスが機能します
-            type="text"
-            value={inputWord}
-            onChange={(e) => setInputWord(e.target.value)}
-            disabled={isLoading}
-            placeholder={isLoading ? "相手が考えています..." : "次の単語を入力"}
-            style={{ padding: "10px", flex: 1 }}
-          />
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{ padding: "10px 20px", cursor: isLoading ? "not-allowed" : "pointer" }}
-          >
-            {isLoading ? "確認中" : "送信"}
-          </button>
-        </form>
-      )}
 
-      {!isGameOver && (
-        <button
-          onClick={handleReset}
-          style={{
-            marginTop: "20px",
-            padding: "5px 10px",
-            cursor: "pointer",
-            background: "none",
-            border: "1px solid #ccc",
-          }}
-        >
-          途中でリセット
-        </button>
-      )}
+        {/* エラー・警告メッセージ */}
+        {error && (
+          <div className={`p-3.5 rounded-lg text-sm text-center font-medium border ${
+            error.includes("確認中") 
+              ? "bg-blue-50 border-blue-100 text-blue-600 animate-pulse" 
+              : "bg-red-50 border-red-100 text-red-600"
+          }`}>
+            {error}
+          </div>
+        )}
+
+        {/* タイマー表示 */}
+        <div className="flex items-center justify-center">
+          <div className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold border transition-all duration-300 ${
+            timeLeft <= 3 
+              ? "bg-rose-50 border-rose-200 text-rose-600 animate-pulse font-extrabold scale-105" 
+              : "bg-amber-50 border-amber-200 text-amber-700"
+          }`}>
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${timeLeft <= 3 ? "bg-rose-400" : "bg-amber-400"}`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${timeLeft <= 3 ? "bg-rose-500" : "bg-amber-500"}`}></span>
+            </span>
+            残り時間: <span className="text-lg font-mono tracking-tight">{timeLeft}</span> 秒
+          </div>
+        </div>
+
+        {/* アクションエリア（ゲーム中 or ゲーム終了） */}
+        {isGameOver ? (
+          <div className="bg-rose-50/50 border border-rose-100 rounded-2xl p-6 text-center space-y-4">
+            <h3 className="text-xl font-black text-rose-600 tracking-wider">GAME OVER</h3>
+            <button
+              onClick={handleReset}
+              className="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-md shadow-slate-900/10"
+            >
+              最初からやり直す
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputWord}
+              onChange={(e) => setInputWord(e.target.value)}
+              disabled={isLoading}
+              placeholder={isLoading ? "相手が考えています..." : "次の単語を入力"}
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400"
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="bg-indigo-600 hover:bg-indigo-500 active:scale-[0.97] disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold px-6 py-3 rounded-xl transition-all duration-150 flex items-center justify-center min-w-[90px] shadow-md shadow-indigo-600/10 disabled:shadow-none"
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 border-2 border-slate-400 border-t-slate-600 rounded-full animate-spin"></span>
+                  <span>確認中</span>
+                </div>
+              ) : "送信"}
+            </button>
+          </form>
+        )}
+
+        {/* 途中リセットボタン */}
+        {!isGameOver && (
+          <div className="text-center">
+            <button
+              onClick={handleReset}
+              className="text-xs font-semibold text-slate-400 hover:text-slate-600 underline underline-offset-4 decoration-dotted transition-colors"
+            >
+              途中でリセット
+            </button>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
