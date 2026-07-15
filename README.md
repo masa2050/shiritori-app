@@ -62,7 +62,7 @@ Vercelにてデプロイを行っており、PC・スマートフォン双方で
 
 ---
 
-## 🤖 AIの活用方法について
+## AIの活用方法について
 
 本アプリの開発において、AI（Gemini 3.5） を以下のように共同開発パートナーとして全面的に活用しました。
 
@@ -75,7 +75,7 @@ Vercelにてデプロイを行っており、PC・スマートフォン双方で
 
 ---
 
-## 🔗 参考にしたWebサイト
+## 参考にしたWebサイト
 
 - [React 公式ドキュメント (RefsによるDOMの操作)](https://ja.react.dev/learn/manipulating-the-dom-with-refs)
 - [Tailwind CSS 公式ドキュメント](https://tailwindcss.com/docs/installation/using-vite)
